@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CoreInventory · smart stock · demo</title>
+  <!-- Google Font & Tailwind + Font Awesome -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <style>
+    * { font-family: 'Inter', sans-serif; }
+    body {
+      background: radial-gradient(circle at 10% 30%, #f1f5fd, #e6ecf8);
+      min-height: 100vh;
+      margin: 0;
+    }
+    .glass-sidebar {
+      background: rgba(255,255,255,0.75);
+      backdrop-filter: blur(16px) saturate(180%);
+      -webkit-backdrop-filter: blur(16px) saturate(180%);
+      border-right: 1px solid rgba(255,255,255,0.5);
+    }
+    .glass-card {
+      background: rgba(255,255,255,0.7);
+      backdrop-filter: blur(12px) saturate(160%);
+      -webkit-backdrop-filter: blur(12px) saturate(160%);
+      border: 1px solid rgba(255,255,255,0.6);
+      box-shadow: 0 20px 35px -8px rgba(0,20,45,0.15), 0 0 0 1px rgba(255,255,255,0.5) inset;
+    }
+    .glass-pill {
+      background: rgba(255,255,255,0.5);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(255,255,255,0.7);
+    }
+    .stat-card {
+      transition: all 0.2s ease;
+      background: rgba(255,255,255,0.6);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255,255,255,0.8);
+      box-shadow: 0 8px 20px -10px rgba(0,40,80,0.2);
+    }
+    .stat-card:hover {
+      transform: translateY(-4px);
+      background: rgba(255,255,255,0.8);
+      box-shadow: 0 20px 30px -10px rgba(30,100,200,0.3);
+      border-color: white;
+    }
+    .nav-item {
+      transition: all 0.2s;
+      border-radius: 16px;
+      margin: 4px 12px;
+      padding: 12px 18px;
+      color: #1e293b;
+      font-weight: 500;
+      cursor: pointer;
+    }
+    .nav-item i { width: 28px; font-size: 1.2rem; color: #3a5f8b; }
+    .nav-item:hover {
+      background: rgba(255,255,255,0.8);
+      backdrop-filter: blur(4px);
+      box-shadow: 0 6px 14px rgba(0,60,120,0.15);
+      color: #0b3550;
+    }
+    .nav-item.active {
+      background: white;
+      box-shadow: 0 8px 18px -6px rgba(30,100,200,0.3), 0 0 0 1px rgba(69, 128, 255, 0.3);
+      color: #1e4f8a;
+    }
+    .profile-item {
+      cursor: pointer;
+      border-radius: 16px;
+      transition: 0.2s;
+    }
+    .profile-item:hover {
+      background: rgba(255,255,255,0.8);
+    }
+    .filter-chip {
+      background: rgba(255,255,255,0.5);
+      backdrop-filter: blur(4px);
+      border: 1px solid rgba(255,255,255,0.8);
+      padding: 8px 18px;
+      border-radius: 40px;
+      font-size: 0.9rem;
+      font-weight: 500;
+      transition: 0.15s;
+    }
+    .filter-chip:hover {
+      background: white;
+      border-color: #90b8ff;
+      box-shadow: 0 4px 10px rgba(0,110,255,0.15);
+    }
+    .btn-icon {
+      background: rgba(255,255,255,0.6);
+      backdrop-filter: blur(4px);
+      border: 1px solid white;
+      border-radius: 40px;
+      padding: 8px 16px;
+      transition: 0.15s;
+    }
+    .btn-icon:hover {
+      background: white;
+      box-shadow: 0 8px 16px -10px #1e4f8a;
+    }
+    .badge-low { background: #fee2e2; color: #b91c1c; font-weight: 600; padding: 4px 12px; border-radius: 40px; font-size: 0.8rem; }
+    .badge-ready { background: #dcfce7; color: #166534; padding: 4px 12px; border-radius: 40px; font-size: 0.8rem; }
+    .badge-waiting { background: #fef9c3; color: #854d0e; padding: 4px 12px; border-radius: 40px; font-size: 0.8rem; }
+    .page-content { display: none; }
+    .page-content.active-page { display: block; }
+    .table-row { border-bottom: 1px solid rgba(0,0,0,0.05); }
+    .hidden { display: none !important; }
+    /* landing specific */
+    .landing-gradient {
+      background: linear-gradient(145deg, #f0f5ff 0%, #e9f0fa 100%);
+    }
+    .hero-glow {
+      box-shadow: 0 25px 50px -12px rgba(0,80,200,0.3);
+    }
+  </style>
+</head>
+<body class="antialiased text-slate-700">
+
+<!-- WRAPPER: contains both landing and app -->
+<div id="app-wrapper">
+
+  <!-- LANDING PAGE (visible by default) -->
+  <div id="landing-page" class="min-h-screen landing-gradient">
+    <!-- simple navigation -->
+    <nav class="flex items-center justify-between px-8 py-5 max-w-7xl mx-auto">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-indigo-600 to-sky-500 shadow-lg flex items-center justify-center text-white text-xl"><i class="fas fa-cubes"></i></div>
+        <span class="text-2xl font-bold bg-gradient-to-r from-indigo-700 to-sky-600 bg-clip-text text-transparent">CoreInventory</span>
+      </div>
+      <div class="flex gap-6 text-slate-600 font-medium">
+        <a href="#" class="hover:text-indigo-600">Features</a>
+        <a href="#" class="hover:text-indigo-600">Pricing</a>
+        <a href="#" class="hover:text-indigo-600">About</a>
+      </div>
+    </nav>
+
+    <!-- hero + login card -->
+    <div class="max-w-7xl mx-auto px-8 py-12 md:py-20 flex flex-col md:flex-row items-center gap-12">
+      <!-- left text -->
+      <div class="flex-1">
+        <h1 class="text-5xl md:text-6xl font-extrabold text-slate-800 leading-tight"><span class="bg-gradient-to-r from-indigo-700 to-indigo-400 bg-clip-text text-transparent">Digitize</span> your warehouse, ditch the spreadsheets 📦</h1>
+        <p class="text-xl text-slate-600 mt-6 max-w-lg">Real‑time inventory, smart transfers, low stock alerts — all in one beautiful app. Used by 2,000+ warehouses.</p>
+        <div class="flex gap-4 mt-8">
+          <div class="flex items-center gap-2 text-sm bg-white/70 backdrop-blur-sm px-5 py-3 rounded-full shadow-sm"><i class="fas fa-check-circle text-indigo-500"></i> No credit card</div>
+          <div class="flex items-center gap-2 text-sm bg-white/70 backdrop-blur-sm px-5 py-3 rounded-full shadow-sm"><i class="fas fa-check-circle text-indigo-500"></i> Free demo</div>
+        </div>
+      </div>
+      <!-- right login card (glass) -->
+      <div class="flex-1 max-w-md w-full">
+        <div class="glass-card rounded-3xl p-8 hero-glow">
+          <h2 class="text-2xl font-bold mb-6 text-center">Access your inventory</h2>
+          <div class="space-y-4">
+            <div>
+              <label class="block text-sm font-medium text-slate-600 mb-1">Email</label>
+              <input type="email" id="login-email" value="demo@corestock.com" class="w-full bg-white/60 border border-white/70 rounded-2xl px-5 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-300">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-slate-600 mb-1">Password</label>
+              <input type="password" id="login-password" value="demo123" class="w-full bg-white/60 border border-white/70 rounded-2xl px-5 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-300">
+            </div>
+            <p class="text-xs text-slate-500 flex items-center gap-1"><i class="fas fa-info-circle"></i> Dummy credentials: demo@corestock.com / demo123</p>
+            <button id="login-button" class="w-full bg-gradient-to-r from-indigo-600 to-indigo-500 text-white font-semibold py-3 rounded-2xl shadow-md hover:shadow-lg transition">Sign in →</button>
+          </div>
+          <p class="text-xs text-center mt-6 text-slate-500">By joining you agree to our terms.</p>
+        </div>
+      </div>
+    </div>
+    <!-- simple footer -->
+    <div class="border-t border-white/30 max-w-7xl mx-auto mt-16 px-8 py-6 text-sm text-slate-400 flex justify-between">
+      <span>© 2026 CoreInventory – demo version</span>
+      <span><i class="fas fa-lock-open mr-1"></i> free access</span>
+    </div>
+  </div>
+
+  <!-- APP CONTAINER (hidden initially) -->
+  <div id="app-container" class="hidden">
+    <!-- main flex (same as previous app) -->
+    <div class="flex h-screen w-full overflow-hidden relative">
+      <!-- LEFT SIDEBAR (glass + nav) -->
+      <div class="glass-sidebar w-[280px] flex-shrink-0 flex flex-col py-6 z-10">
+        <div class="px-6 mb-8 flex items-center gap-3">
+          <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-indigo-500 to-sky-400 shadow-lg flex items-center justify-center text-white text-xl"><i class="fas fa-cubes"></i></div>
+          <span class="text-2xl font-bold bg-gradient-to-r from-indigo-700 to-sky-600 bg-clip-text text-transparent">Core<span class="font-light">Stock</span></span>
+        </div>
+        <div class="flex-1 overflow-y-auto">
+          <div class="text-xs uppercase tracking-wider text-slate-400 px-6 mb-2">Main</div>
+          <div class="nav-item active" data-page="dashboard"><i class="fas fa-th-large"></i> Dashboard</div>
+          <div class="nav-item" data-page="products"><i class="fas fa-box"></i> Products</div>
+          <div class="text-xs uppercase tracking-wider text-slate-400 px-6 mt-6 mb-2">Operations</div>
+          <div class="nav-item" data-page="receipts"><i class="fas fa-truck-loading"></i> Receipts</div>
+          <div class="nav-item" data-page="deliveries"><i class="fas fa-truck"></i> Deliveries</div>
+          <div class="nav-item" data-page="adjustments"><i class="fas fa-arrows-spin"></i> Adjustments</div>
+          <div class="nav-item" data-page="transfers"><i class="fas fa-arrow-right-arrow-left"></i> Transfers</div>
+          <div class="nav-item" data-page="movehistory"><i class="fas fa-clock-rotate-left"></i> Move History</div>
+          <div class="text-xs uppercase tracking-wider text-slate-400 px-6 mt-6 mb-2">Warehouse</div>
+          <div class="nav-item" data-page="locations"><i class="fas fa-warehouse"></i> Locations</div>
+          <div class="nav-item" data-page="settings"><i class="fas fa-sliders"></i> Settings</div>
+        </div>
+        <div class="border-t border-white/40 pt-4 px-4">
+          <div class="profile-item flex items-center gap-3 px-2 py-2" data-page="profile">
+            <div class="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-200 to-indigo-200 flex items-center justify-center text-indigo-700 border-2 border-white"><i class="fas fa-user-circle text-xl"></i></div>
+            <div class="flex-1">
+              <div class="font-semibold">Alex Rivera</div>
+              <div class="text-xs text-slate-500">Inventory Manager</div>
+            </div>
+          </div>
+          <div class="flex justify-between px-4 mt-2 text-slate-500">
+            <a href="#" id="my-profile-link-app" class="hover:text-indigo-600 transition"><i class="fas fa-user"></i> <span class="text-sm">My Profile</span></a>
+            <a href="#" id="logout-link-app" class="hover:text-indigo-600 transition"><i class="fas fa-sign-out"></i> <span class="text-sm">Logout</span></a>
+          </div>
+        </div>
+      </div>
+
+      <!-- MAIN CONTENT (right side) with page container -->
+      <div class="flex-1 overflow-y-auto p-6 relative z-0" id="main-content">
+        <!-- top header (global) -->
+        <div class="flex justify-between items-center mb-6">
+          <h1 class="text-3xl font-bold text-slate-800 flex items-center gap-2" id="page-title">📊 Dashboard</h1>
+          <div class="flex gap-3 items-center">
+            <div class="relative">
+              <i class="fas fa-search absolute left-4 top-3.5 text-slate-400 text-sm"></i>
+              <input type="text" placeholder="SKU, product, location..." class="glass-pill pl-10 pr-4 py-3 w-64 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200"/>
+            </div>
+            <div class="w-10 h-10 rounded-full bg-white/70 flex items-center justify-center backdrop-blur-sm border border-white"><i class="far fa-bell"></i></div>
+          </div>
+        </div>
+
+        <!-- ALL PAGE CONTAINERS (dummy data, same as previous but enriched) -->
+        <div id="page-container">
+          <!-- DASHBOARD PAGE -->
+          <div id="dashboard-page" class="page-content active-page">
+            <!-- KPI cards -->
+            <div class="grid grid-cols-5 gap-5 mb-6">
+              <div class="stat-card rounded-2xl p-5"><div class="flex justify-between items-start"><div><span class="text-slate-500 text-sm">Total Products</span><div class="text-3xl font-bold">1,482</div></div><div class="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center text-xl"><i class="fas fa-cube"></i></div></div></div>
+              <div class="stat-card rounded-2xl p-5"><div><span class="text-slate-500 text-sm">Low stock / out</span><div class="text-3xl font-bold text-amber-600">8 <span class="text-sm text-slate-400 font-medium">/ 2 out</span></div></div></div>
+              <div class="stat-card rounded-2xl p-5"><div><span class="text-slate-500 text-sm">Pending receipts</span><div class="text-3xl font-bold">3</div></div></div>
+              <div class="stat-card rounded-2xl p-5"><div><span class="text-slate-500 text-sm">Pending deliveries</span><div class="text-3xl font-bold">5</div></div></div>
+              <div class="stat-card rounded-2xl p-5"><div><span class="text-slate-500 text-sm">Transfers scheduled</span><div class="text-3xl font-bold">2</div></div></div>
+            </div>
+            <!-- dynamic filters -->
+            <div class="glass-card rounded-2xl p-5 flex flex-wrap items-center gap-3 mb-6">
+              <span class="text-sm font-semibold text-slate-600 mr-2"><i class="fas fa-filter mr-1"></i>Filters:</span>
+              <div class="filter-chip active">All docs</div><div class="filter-chip">Receipts</div><div class="filter-chip">Delivery</div><div class="filter-chip">Internal</div><div class="filter-chip">Adjustments</div>
+              <div class="filter-chip flex items-center gap-1">Status <i class="fas fa-chevron-down text-xs"></i></div>
+              <div class="filter-chip flex items-center gap-1">Warehouse: Main <i class="fas fa-chevron-down text-xs"></i></div>
+              <div class="filter-chip flex items-center gap-1">Category <i class="fas fa-chevron-down text-xs"></i></div>
+              <div class="flex-1 text-right text-sm text-indigo-600">+ saved filters</div>
+            </div>
+            <!-- grid -->
+            <div class="grid grid-cols-3 gap-6">
+              <div class="col-span-2 space-y-6">
+                <div class="glass-card rounded-2xl p-5">
+                  <div class="flex items-center justify-between mb-4"><h2 class="text-lg font-semibold flex items-center gap-2"><i class="fas fa-boxes text-indigo-500"></i> Products & stock</h2><button class="btn-icon text-sm"><i class="fas fa-plus-circle text-indigo-500 mr-1"></i> New product</button></div>
+                  <div class="flex flex-wrap gap-2 mb-4"><span class="bg-white/70 rounded-full px-4 py-1 text-xs border">All</span><span class="bg-white/70 rounded-full px-4 py-1 text-xs border">Raw materials</span><span class="bg-white/70 rounded-full px-4 py-1 text-xs border">Finished goods</span><span class="bg-white/70 rounded-full px-4 py-1 text-xs border">Packaging</span></div>
+                  <table class="w-full text-sm"><thead class="text-slate-400 border-b border-white/50"><tr><th class="text-left py-2">Product</th><th>SKU</th><th>Stock</th><th>Location</th><th>Reorder</th></tr></thead><tbody class="divide-y divide-white/40">
+                    <tr class="table-row"><td class="py-3 font-medium">Steel Rods</td><td>SR-4400</td><td>124 kg</td><td>Rack A2</td><td><50</td></tr>
+                    <tr class="table-row"><td class="py-3 font-medium">Chairs (oak)</td><td>CH-O202</td><td>43 pcs</td><td>Main store</td><td><20</td></tr>
+                    <tr class="table-row"><td class="py-3 font-medium">Steel Rods (thin)</td><td>SR-112</td><td class="text-amber-700">8 kg</td><td>Rack B1</td><td class="badge-low">low</td></tr>
+                    <tr class="table-row"><td class="py-3 font-medium">Glass panels</td><td>GP-990</td><td>15 pcs</td><td>Warehouse 2</td><td><10</td></tr>
+                  </tbody></table>
+                </div>
+                <div class="glass-card rounded-2xl p-5"><div class="flex gap-4"><div class="w-2/3"><h3 class="font-semibold flex gap-1"><i class="fas fa-bell text-amber-500"></i> Low stock alerts</h3><ul class="mt-3 space-y-2 text-sm"><li class="flex justify-between"><span>🔩 Steel Rods (thin) </span><span class="badge-low">8 left · min 20</span></li><li class="flex justify-between"><span>🪑 Oak legs </span><span class="badge-low">3 left · min 15</span></li></ul></div></div></div>
+              </div>
+              <div class="space-y-6">
+                <div class="glass-card rounded-2xl p-5"><h3 class="font-semibold mb-3 flex items-center gap-2"><i class="fas fa-clock text-indigo-400"></i> Pending operations</h3><div class="space-y-3"><div class="flex justify-between bg-white/40 p-3 rounded-xl"><div><i class="fas fa-truck-loading text-emerald-600"></i> <span class="font-medium">Receipt #R-872</span><div class="text-xs">Steel rods · 50 kg</div></div><span class="badge-waiting text-xs">waiting</span></div><div class="flex justify-between bg-white/40 p-3 rounded-xl"><div><i class="fas fa-truck text-sky-600"></i> <span class="font-medium">Delivery #D-214</span><div class="text-xs">Chairs (10) · to client</div></div><span class="badge-waiting text-xs">pick</span></div></div></div>
+                <div class="glass-card rounded-2xl p-5"><div class="flex items-center justify-between"><h3 class="font-semibold">📋 Stock ledger</h3></div><div class="mt-3 text-sm space-y-2"><div class="flex justify-between"><span>10:24 Receipt +50 steel rods</span><span class="text-indigo-600">done</span></div><div class="flex justify-between"><span>09:15 Transfer 20 → prod floor</span><span class="text-indigo-600">logged</span></div></div></div>
+              </div>
+            </div>
+          </div>
+          <!-- PRODUCTS PAGE -->
+          <div id="products-page" class="page-content">
+            <div class="glass-card rounded-2xl p-6">
+              <div class="flex justify-between items-center mb-4"><h2 class="text-2xl font-semibold"><i class="fas fa-box text-indigo-500 mr-2"></i>Product Management</h2><button class="btn-icon"><i class="fas fa-plus"></i> Create product</button></div>
+              <div class="mb-4 flex gap-2"><span class="filter-chip">All categories</span><span class="filter-chip">Raw</span><span class="filter-chip">Finished</span></div>
+              <table class="w-full text-sm">
+                <thead><tr class="border-b border-white/30"><th class="text-left py-2">Name</th><th>SKU</th><th>Category</th><th>Unit</th><th>Initial stock</th><th>Locations</th><th>Actions</th></tr></thead>
+                <tbody>
+                  <tr class="border-b border-white/20"><td class="py-3">Steel Rods (40mm)</td><td>SR-401</td><td>Raw</td><td>kg</td><td>200</td><td>A1, A2</td><td><i class="far fa-edit text-indigo-500 mr-2"></i><i class="far fa-copy"></i></td></tr>
+                  <tr class="border-b border-white/20"><td>Oak Chair</td><td>CH-882</td><td>Finished</td><td>pcs</td><td>50</td><td>Main</td><td><i class="far fa-edit text-indigo-500 mr-2"></i></td></tr>
+                  <tr><td>Aluminium sheet</td><td>AL-007</td><td>Raw</td><td>sheet</td><td>120</td><td>WH2</td><td><i class="far fa-edit"></i></td></tr>
+                </tbody>
+              </table>
+              <div class="mt-6 p-4 bg-white/40 rounded-xl"><span class="font-semibold">Reordering rules:</span> Steel min 50, Chair min 20, Aluminium min 30</div>
+            </div>
+          </div>
+          <!-- RECEIPTS PAGE -->
+          <div id="receipts-page" class="page-content">
+            <div class="glass-card rounded-2xl p-6">
+              <h2 class="text-2xl font-semibold mb-4"><i class="fas fa-truck-loading text-indigo-500 mr-2"></i>Incoming receipts</h2>
+              <div class="grid gap-4">
+                <div class="flex justify-between bg-white/40 p-4 rounded-xl"><div><span class="font-bold">PO-2341</span> from SteelMart <br><span class="text-sm">50x Steel rods, 20x Alu sheets</span></div><span class="badge-waiting">scheduled 2026-03-20</span><button class="text-indigo-600">validate</button></div>
+                <div class="flex justify-between bg-white/40 p-4 rounded-xl"><div><span class="font-bold">PO-2388</span> from WoodWorks <br><span class="text-sm">10x Oak chairs</span></div><span class="badge-ready">arrived · +10</span><button class="text-indigo-600">view</button></div>
+              </div>
+            </div>
+          </div>
+          <!-- DELIVERIES PAGE -->
+          <div id="deliveries-page" class="page-content">
+            <div class="glass-card rounded-2xl p-6">
+              <h2 class="text-2xl font-semibold mb-4"><i class="fas fa-truck text-indigo-500 mr-2"></i>Outgoing deliveries</h2>
+              <div class="space-y-3">
+                <div class="flex items-center gap-4 bg-white/40 p-3 rounded-xl"><i class="fas fa-box-open"></i><span class="flex-1">Delivery #D-101 to ABC Corp (12 chairs)</span><span class="badge-waiting">pick</span><i class="far fa-check-circle text-indigo-500"></i></div>
+                <div class="flex items-center gap-4 bg-white/40 p-3 rounded-xl"><i class="fas fa-box-open"></i><span class="flex-1">Delivery #D-102 to XYZ Ltd (5 steel rods)</span><span class="badge-ready">packed</span><i class="far fa-check-circle text-indigo-500"></i></div>
+              </div>
+            </div>
+          </div>
+          <!-- ADJUSTMENTS PAGE -->
+          <div id="adjustments-page" class="page-content">
+            <div class="glass-card rounded-2xl p-6">
+              <h2 class="text-2xl font-semibold mb-4"><i class="fas fa-arrows-spin text-indigo-500 mr-2"></i>Stock adjustments</h2>
+              <div class="mb-4 bg-white/40 p-4 rounded-xl"><span class="font-semibold">Recorded vs Physical</span><br>Select product: <select class="bg-white/60 rounded p-2 mx-2"><option>Steel rods (Rack A2)</option><option>Oak legs</option></select> Counted: <input type="number" value="122" class="bg-white/60 rounded p-2 w-20"> <button class="btn-icon">update</button></div>
+              <div class="text-sm">Last adjustments: -3kg damaged (steel), +2 inventory count</div>
+            </div>
+          </div>
+          <!-- TRANSFERS PAGE -->
+          <div id="transfers-page" class="page-content">
+            <div class="glass-card rounded-2xl p-6">
+              <h2 class="text-2xl font-semibold mb-4"><i class="fas fa-arrow-right-arrow-left text-indigo-500 mr-2"></i>Internal transfers</h2>
+              <div class="grid gap-3">
+                <div class="bg-white/40 p-3 rounded-xl flex justify-between"><span>Main Store → Production Floor (20 steel rods)</span><span class="badge-ready">completed</span></div>
+                <div class="bg-white/40 p-3 rounded-xl flex justify-between"><span>Rack A → Rack B (5 glass panels)</span><span class="badge-waiting">scheduled</span></div>
+              </div>
+            </div>
+          </div>
+          <!-- MOVE HISTORY PAGE -->
+          <div id="movehistory-page" class="page-content">
+            <div class="glass-card rounded-2xl p-6">
+              <h2 class="text-2xl font-semibold mb-4"><i class="fas fa-clock-rotate-left text-indigo-500 mr-2"></i>Stock ledger</h2>
+              <ul class="space-y-2">
+                <li class="flex gap-4 border-b pb-1"><span class="w-24">10:24</span>Receipt +50 Steel rods (vendor)</li>
+                <li class="flex gap-4 border-b pb-1"><span class="w-24">09:15</span>Transfer 20 → Production floor</li>
+                <li class="flex gap-4 border-b pb-1"><span class="w-24">08:50</span>Adjustment -3 kg damaged steel</li>
+              </ul>
+            </div>
+          </div>
+          <!-- LOCATIONS PAGE -->
+          <div id="locations-page" class="page-content">
+            <div class="glass-card rounded-2xl p-6">
+              <h2 class="text-2xl font-semibold mb-4"><i class="fas fa-warehouse text-indigo-500 mr-2"></i>Warehouse locations</h2>
+              <div class="grid grid-cols-2 gap-4">
+                <div class="bg-white/40 p-4 rounded-xl"><span class="font-bold">Main Store</span> - 684 items (Racks A1-A4, B1)</div>
+                <div class="bg-white/40 p-4 rounded-xl"><span class="font-bold">Production Floor</span> - 212 items (pending WIP)</div>
+                <div class="bg-white/40 p-4 rounded-xl"><span class="font-bold">Warehouse 2</span> - 586 items (bulk storage)</div>
+              </div>
+            </div>
+          </div>
+          <!-- SETTINGS PAGE -->
+          <div id="settings-page" class="page-content">
+            <div class="glass-card rounded-2xl p-6">
+              <h2 class="text-2xl font-semibold mb-4"><i class="fas fa-sliders text-indigo-500 mr-2"></i>Settings</h2>
+              <div class="space-y-3">
+                <div><i class="far fa-bell mr-2"></i> Low stock threshold: <input type="number" value="20" class="bg-white/60 rounded p-1 w-16"></div>
+                <div><i class="far fa-building mr-2"></i> Default warehouse: Main Store</div>
+                <div><i class="fas fa-toggle-on text-indigo-500 mr-2"></i> Auto-adjust on receipt</div>
+              </div>
+            </div>
+          </div>
+          <!-- PROFILE PAGE -->
+          <div id="profile-page" class="page-content">
+            <div class="glass-card rounded-2xl p-6 max-w-2xl">
+              <h2 class="text-2xl font-semibold mb-4"><i class="fas fa-user-circle text-indigo-500 mr-2"></i>My Profile</h2>
+              <div class="flex items-center gap-6 mb-6"><div class="w-20 h-20 rounded-full bg-gradient-to-br from-emerald-200 to-indigo-200 flex items-center justify-center text-indigo-700 text-3xl border-4 border-white">AR</div><div><div class="text-xl font-semibold">Alex Rivera</div><div class="text-slate-600">Inventory Manager · since 2022</div><div class="text-sm">alex.r@corestock.com</div></div></div>
+              <div class="grid grid-cols-2 gap-4"><div class="bg-white/40 p-3 rounded-xl"><span class="font-medium">Recent activity</span> : 12 receipts, 24 deliveries</div><div class="bg-white/40 p-3 rounded-xl"><span class="font-medium">Default warehouse</span> : Main Store</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  (function() {
+    // ----- GLOBAL: landing vs app visibility -----
+    const landingPage = document.getElementById('landing-page');
+    const appContainer = document.getElementById('app-container');
+    const loginBtn = document.getElementById('login-button');
+    const logoutLinkApp = document.getElementById('logout-link-app');
+
+    // Dummy credentials
+    const VALID_EMAIL = 'demo@corestock.com';
+    const VALID_PASSWORD = 'demo123';
+
+    // Login function
+    function login() {
+      const email = document.getElementById('login-email').value.trim();
+      const password = document.getElementById('login-password').value.trim();
+      if (email === VALID_EMAIL && password === VALID_PASSWORD) {
+        landingPage.classList.add('hidden');
+        appContainer.classList.remove('hidden');
+        // reset to dashboard page
+        setActivePage('dashboard');
+      } else {
+        alert('Invalid credentials. Use demo@corestock.com / demo123');
+      }
+    }
+
+    loginBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      login();
+    });
+
+    // Logout function
+    function logout() {
+      appContainer.classList.add('hidden');
+      landingPage.classList.remove('hidden');
+      // optional: clear any sensitive fields? keep prefilled.
+    }
+
+    if (logoutLinkApp) {
+      logoutLinkApp.addEventListener('click', (e) => {
+        e.preventDefault();
+        logout();
+      });
+    }
+
+    // also handle "My Profile" link inside app (for completeness)
+    const profileLinkApp = document.getElementById('my-profile-link-app');
+    if (profileLinkApp) {
+      profileLinkApp.addEventListener('click', (e) => {
+        e.preventDefault();
+        setActivePage('profile');
+      });
+    }
+
+    // ----- PAGE SWITCHING INSIDE APP (same as previous but adapted) -----
+    const navItems = document.querySelectorAll('.nav-item[data-page]');
+    const profileMenuItem = document.querySelector('.profile-item[data-page]');
+    const pages = {
+      dashboard: document.getElementById('dashboard-page'),
+      products: document.getElementById('products-page'),
+      receipts: document.getElementById('receipts-page'),
+      deliveries: document.getElementById('deliveries-page'),
+      adjustments: document.getElementById('adjustments-page'),
+      transfers: document.getElementById('transfers-page'),
+      movehistory: document.getElementById('movehistory-page'),
+      locations: document.getElementById('locations-page'),
+      settings: document.getElementById('settings-page'),
+      profile: document.getElementById('profile-page')
+    };
+    const pageTitle = document.getElementById('page-title');
+
+    window.setActivePage = function(pageId) {
+      Object.values(pages).forEach(p => { if(p) p.classList.remove('active-page'); });
+      if (pages[pageId]) pages[pageId].classList.add('active-page');
+      navItems.forEach(item => item.classList.remove('active'));
+      if (pageId === 'profile') {
+        // no nav-item active
+      } else {
+        const activeNav = document.querySelector(`.nav-item[data-page="${pageId}"]`);
+        if (activeNav) activeNav.classList.add('active');
+      }
+      const titles = {
+        dashboard: '📊 Dashboard', products: '📦 Products', receipts: '📥 Receipts',
+        deliveries: '📤 Deliveries', adjustments: '⚖️ Adjustments', transfers: '🔄 Internal Transfers',
+        movehistory: '📜 Move History', locations: '🏢 Locations', settings: '⚙️ Settings', profile: '👤 My Profile'
+      };
+      if (pageTitle) pageTitle.innerText = titles[pageId] || 'CoreInventory';
+    };
+
+    navItems.forEach(item => {
+      item.addEventListener('click', (e) => {
+        const page = item.getAttribute('data-page');
+        setActivePage(page);
+      });
+    });
+
+    if (profileMenuItem) {
+      profileMenuItem.addEventListener('click', () => setActivePage('profile'));
+    }
+
+    // set default dashboard when app loads (already active but ensure)
+    setActivePage('dashboard');
+
+    // Also handle "enter" key on password field
+    document.getElementById('login-password').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') login();
+    });
+  })();
+</script>
+<!-- ensure that landing page is visible if no login, and app hidden -->
+<style>
+  /* initial state: landing visible, app hidden */
+  #app-container.hidden { display: none; }
+  #landing-page { display: block; }
+  #app-container:not(.hidden) { display: flex; }
+</style>
+</body>
+</html>
