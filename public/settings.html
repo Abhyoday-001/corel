@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CoreInventory | Settings</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+    <aside class="sidebar">
+        <div class="logo">CoreInventory</div>
+        <ul>
+            <li onclick="location.href='index.html'">Dashboard</li>
+            <li onclick="location.href='products.html'">Products</li>
+            <li onclick="location.href='receipts.html'">Receipts</li>
+            <li onclick="location.href='deliveries.html'">Delivery Orders</li>
+            <li onclick="location.href='transfers.html'">Internal Transfers</li>
+            <li onclick="location.href='adjustments.html'">Inventory Adjustment</li>
+            <li onclick="location.href='history.html'">Move History</li>
+            <li class="active">Settings</li>
+        </ul>
+        <div class="sidebar-footer">
+            Logged in as<span class="user-name">Inventory Manager</span>
+            <button class="logout-btn" onclick="logout()">Logout</button>
+        </div>
+    </aside>
+
+    <main class="main">
+        <header>
+            <h1>Warehouse & Location Settings</h1>
+            <button class="btn btn-primary" onclick="openModal('createLocModal')">+ Add Location</button>
+        </header>
+
+        <div class="data-section" style="margin-bottom:2rem">
+            <h2>Warehouses</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>NAME</th>
+                        <th>ADDRESS</th>
+                    </tr>
+                </thead>
+                <tbody id="warehouseTable"></tbody>
+            </table>
+        </div>
+
+        <div class="data-section">
+            <h2>Locations (Racks/Zones)</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>NAME</th>
+                        <th>WAREHOUSE</th>
+                    </tr>
+                </thead>
+                <tbody id="locationTable"></tbody>
+            </table>
+        </div>
+    </main>
+
+    <div class="modal-overlay" id="createLocModal">
+        <div class="modal">
+            <h2>Add Location</h2>
+            <div class="form-group"><label>Warehouse</label><select id="lWarehouse"></select></div>
+            <div class="form-group"><label>Location Name</label><input type="text" id="lName"
+                    placeholder="e.g. Rack C3"></div>
+            <div class="modal-actions">
+                <button class="btn btn-outline" onclick="closeModal('createLocModal')">Cancel</button>
+                <button class="btn btn-primary" onclick="createLocation()">Create</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/app.js"></script>
+    <script>
+        async function loadSettings() {
+            try {
+                await ensureAuth();
+                // Warehouses
+                const w = await api.get('/warehouses');
+                const warehouses = Array.isArray(w) ? w : (w.data || []);
+                document.getElementById('warehouseTable').innerHTML = warehouses.map(wh => `
+                    <tr><td>#${wh.id}</td><td>${wh.name}</td><td>${wh.location || '—'}</td></tr>
+                `).join('') || emptyRow(3);
+                document.getElementById('lWarehouse').innerHTML = warehouses.map(wh => `<option value="${wh.id}">${wh.name}</option>`).join('');
+
+                // Locations
+                const l = await api.get('/locations');
+                const locations = Array.isArray(l) ? l : (l.data || []);
+                document.getElementById('locationTable').innerHTML = locations.map(loc => {
+                    const wh = warehouses.find(w => w.id === loc.warehouse_id);
+                    return `<tr><td>#${loc.id}</td><td>${loc.name}</td><td>${wh ? wh.name : '—'}</td></tr>`;
+                }).join('') || emptyRow(3);
+            } catch (err) { showToast('Failed to load settings: ' + err.message, 'error'); }
+        }
+
+        async function createLocation() {
+            try {
+                await api.post('/locations', {
+                    warehouse_id: document.getElementById('lWarehouse').value,
+                    name: document.getElementById('lName').value,
+                });
+                showToast('Location created!', 'success');
+                closeModal('createLocModal');
+                loadSettings();
+            } catch (err) { showToast(err.message, 'error'); }
+        }
+
+        document.addEventListener('DOMContentLoaded', loadSettings);
+    </script>
+</body>
+
+</html>

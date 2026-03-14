@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CoreInventory | Move History</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+    <aside class="sidebar">
+        <div class="logo">CoreInventory</div>
+        <ul>
+            <li onclick="location.href='index.html'">Dashboard</li>
+            <li onclick="location.href='products.html'">Products</li>
+            <li onclick="location.href='receipts.html'">Receipts</li>
+            <li onclick="location.href='deliveries.html'">Delivery Orders</li>
+            <li onclick="location.href='transfers.html'">Internal Transfers</li>
+            <li onclick="location.href='adjustments.html'">Inventory Adjustment</li>
+            <li class="active">Move History</li>
+            <li onclick="location.href='settings.html'">Settings</li>
+        </ul>
+        <div class="sidebar-footer">
+            Logged in as<span class="user-name">Inventory Manager</span>
+            <button class="logout-btn" onclick="logout()">Logout</button>
+        </div>
+    </aside>
+
+    <main class="main">
+        <header>
+            <h1>Stock Move History (Ledger)</h1>
+            <button class="btn btn-outline" onclick="printPage()">🖨 Print</button>
+        </header>
+
+        <div class="filter-bar">
+            <select id="typeFilter" onchange="loadHistory()">
+                <option value="">All Types</option>
+                <option value="receipt">Receipt</option>
+                <option value="delivery">Delivery</option>
+                <option value="transfer_out">Transfer Out</option>
+                <option value="transfer_in">Transfer In</option>
+                <option value="adjustment">Adjustment</option>
+            </select>
+        </div>
+
+        <div class="data-section">
+            <table>
+                <thead>
+                    <tr>
+                        <th>DATE</th>
+                        <th>PRODUCT</th>
+                        <th>LOCATION</th>
+                        <th>OPERATION</th>
+                        <th>CHANGE</th>
+                        <th>REF #</th>
+                    </tr>
+                </thead>
+                <tbody id="historyTable"></tbody>
+            </table>
+        </div>
+    </main>
+
+    <script src="js/app.js"></script>
+    <script>
+        async function loadHistory() {
+            const tbody = document.getElementById('historyTable');
+            tbody.innerHTML = loadingRow(6);
+            try {
+                await ensureAuth();
+                const type = document.getElementById('typeFilter').value;
+                const url = type ? `/dashboard/ledger?operationType=${type}` : '/dashboard/ledger';
+                const data = await api.get(url);
+                const entries = data.entries || [];
+                tbody.innerHTML = entries.map(e => `
+                    <tr>
+                        <td>${new Date(e.created_at).toLocaleString()}</td>
+                        <td>${e.product_name || e.product_id} <span style="color:var(--text-muted);font-size:0.75rem">${e.product_sku || ''}</span></td>
+                        <td>${e.location_name || e.location_id} ${e.warehouse_name ? `<span style="color:var(--text-muted);font-size:0.75rem">(${e.warehouse_name})</span>` : ''}</td>
+                        <td>${statusBadge(e.operation_type)}</td>
+                        <td>${qtyHtml(e.quantity_change)}</td>
+                        <td style="color:var(--text-muted)">#${e.reference_id}</td>
+                    </tr>
+                `).join('') || emptyRow(6, 'No ledger entries yet.');
+            } catch (err) { tbody.innerHTML = emptyRow(6, 'Error: ' + err.message); }
+        }
+        document.addEventListener('DOMContentLoaded', loadHistory);
+    </script>
+</body>
+
+</html>

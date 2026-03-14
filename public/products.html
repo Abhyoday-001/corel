@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CoreInventory | Products</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+    <aside class="sidebar">
+        <div class="logo">CoreInventory</div>
+        <ul>
+            <li onclick="location.href='index.html'">Dashboard</li>
+            <li class="active">Products</li>
+            <li onclick="location.href='receipts.html'">Receipts</li>
+            <li onclick="location.href='deliveries.html'">Delivery Orders</li>
+            <li onclick="location.href='transfers.html'">Internal Transfers</li>
+            <li onclick="location.href='adjustments.html'">Inventory Adjustment</li>
+            <li onclick="location.href='history.html'">Move History</li>
+            <li onclick="location.href='settings.html'">Settings</li>
+        </ul>
+        <div class="sidebar-footer">
+            Logged in as<span class="user-name">Inventory Manager</span>
+            <button class="logout-btn" onclick="logout()">Logout</button>
+        </div>
+    </aside>
+
+    <main class="main">
+        <header>
+            <h1>Product Management</h1>
+            <button class="btn btn-primary" onclick="openModal('createProductModal')">+ Create Product</button>
+        </header>
+
+        <div class="filter-bar">
+            <select id="categoryFilter" onchange="loadProducts()">
+                <option value="">All Categories</option>
+            </select>
+            <input type="text" placeholder="Search by name or SKU..." id="productSearch" oninput="filterTable()">
+        </div>
+
+        <div class="data-section">
+            <table>
+                <thead>
+                    <tr>
+                        <th>SKU</th>
+                        <th>NAME</th>
+                        <th>CATEGORY</th>
+                        <th>UNIT</th>
+                        <th>STOCK</th>
+                        <th>REORDER LEVEL</th>
+                    </tr>
+                </thead>
+                <tbody id="productTable"></tbody>
+            </table>
+        </div>
+    </main>
+
+    <!-- Create Product Modal -->
+    <div class="modal-overlay" id="createProductModal">
+        <div class="modal">
+            <h2>Create Product</h2>
+            <div class="form-row">
+                <div class="form-group"><label>Name</label><input type="text" id="pName" placeholder="Product name">
+                </div>
+                <div class="form-group"><label>SKU</label><input type="text" id="pSku" placeholder="SKU-001"></div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Category</label>
+                    <select id="pCategory">
+                        <option value="">Select...</option>
+                    </select>
+                </div>
+                <div class="form-group"><label>Unit</label><input type="text" id="pUnit" placeholder="pcs / kg"></div>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-outline" onclick="closeModal('createProductModal')">Cancel</button>
+                <button class="btn btn-primary" onclick="createProduct()">Create</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/app.js"></script>
+    <script>
+        let allProducts = [];
+
+        async function loadProducts() {
+            const tbody = document.getElementById('productTable');
+            tbody.innerHTML = loadingRow(6);
+            try {
+                await ensureAuth();
+                const catId = document.getElementById('categoryFilter').value;
+                const url = catId ? `/products?category_id=${catId}` : '/products';
+                const data = await api.get(url);
+                allProducts = Array.isArray(data) ? data : (data.data || []);
+
+                // Also fetch stock overview
+                let stockMap = {};
+                try {
+                    const stockData = await api.get('/dashboard/stock-overview');
+                    (stockData.stock || []).forEach(s => {
+                        if (!stockMap[s.product_id]) stockMap[s.product_id] = 0;
+                        stockMap[s.product_id] += s.quantity;
+                    });
+                } catch { }
+
+                tbody.innerHTML = allProducts.map(p => {
+                    const totalStock = stockMap[p.id] || 0;
+                    const isLow = p.reorder_level && totalStock < p.reorder_level;
+                    return `<tr>
+                        <td style="font-family:monospace;color:var(--neon-blue)">${p.sku}</td>
+                        <td>${p.name}</td>
+                        <td>${p.category_name || '—'}</td>
+                        <td>${p.unit || '—'}</td>
+                        <td class="${isLow ? 'qty-negative' : ''}">${totalStock}</td>
+                        <td>${p.reorder_level || '—'}</td>
+                    </tr>`;
+                }).join('') || emptyRow(6);
+            } catch (err) {
+                tbody.innerHTML = emptyRow(6, 'Error: ' + err.message);
+                showToast('Failed to load products', 'error');
+            }
+        }
+
+        function filterTable() {
+            const q = document.getElementById('productSearch').value.toLowerCase();
+            const rows = document.querySelectorAll('#productTable tr');
+            rows.forEach(row => {
+                row.style.display = row.textContent.toLowerCase().includes(q) ? '' : 'none';
+            });
+        }
+
+        async function loadCategories() {
+            try {
+                const data = await api.get('/categories');
+                const cats = Array.isArray(data) ? data : (data.data || []);
+                const optHtml = cats.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+                document.getElementById('categoryFilter').innerHTML = '<option value="">All Categories</option>' + optHtml;
+                document.getElementById('pCategory').innerHTML = '<option value="">Select...</option>' + optHtml;
+            } catch { }
+        }
+
+        async function createProduct() {
+            try {
+                const body = {
+                    name: document.getElementById('pName').value,
+                    sku: document.getElementById('pSku').value,
+                    category_id: document.getElementById('pCategory').value || null,
+                    unit: document.getElementById('pUnit').value || null,
+                };
+                if (!body.name || !body.sku) return showToast('Name and SKU are required', 'error');
+                await api.post('/products', body);
+                showToast('Product created!', 'success');
+                closeModal('createProductModal');
+                loadProducts();
+            } catch (err) {
+                showToast(err.message, 'error');
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => { loadCategories(); loadProducts(); });
+    </script>
+</body>
+
+</html>

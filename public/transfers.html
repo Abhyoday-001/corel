@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CoreInventory | Internal Transfers</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+    <aside class="sidebar">
+        <div class="logo">CoreInventory</div>
+        <ul>
+            <li onclick="location.href='index.html'">Dashboard</li>
+            <li onclick="location.href='products.html'">Products</li>
+            <li onclick="location.href='receipts.html'">Receipts</li>
+            <li onclick="location.href='deliveries.html'">Delivery Orders</li>
+            <li class="active">Internal Transfers</li>
+            <li onclick="location.href='adjustments.html'">Inventory Adjustment</li>
+            <li onclick="location.href='history.html'">Move History</li>
+            <li onclick="location.href='settings.html'">Settings</li>
+        </ul>
+        <div class="sidebar-footer">
+            Logged in as<span class="user-name">Inventory Manager</span>
+            <button class="logout-btn" onclick="logout()">Logout</button>
+        </div>
+    </aside>
+
+    <main class="main">
+        <header>
+            <h1>Internal Transfers</h1>
+            <div style="display:flex;gap:10px">
+                <button class="btn btn-outline" onclick="printPage()">🖨 Print</button>
+                <button class="btn btn-primary" onclick="openModal('createTransferModal')">+ Plan Transfer</button>
+            </div>
+        </header>
+
+        <div class="data-section">
+            <table>
+                <thead>
+                    <tr>
+                        <th>REF</th>
+                        <th>FROM</th>
+                        <th>TO</th>
+                        <th>DATE</th>
+                        <th>ACTIONS</th>
+                    </tr>
+                </thead>
+                <tbody id="transferTable"></tbody>
+            </table>
+        </div>
+    </main>
+
+    <div class="modal-overlay" id="createTransferModal">
+        <div class="modal">
+            <h2>Plan Transfer</h2>
+            <div class="form-row">
+                <div class="form-group"><label>From Location</label>
+                    <select id="tFrom"></select>
+                </div>
+                <div class="form-group"><label>To Location</label>
+                    <select id="tTo"></select>
+                </div>
+            </div>
+            <h3 style="margin:1rem 0 0.5rem;font-size:0.9rem">Items</h3>
+            <div id="transferItems"></div>
+            <button class="btn btn-outline btn-sm" style="margin-bottom:1rem" onclick="addTransferItem()">+ Add
+                Item</button>
+            <div class="modal-actions">
+                <button class="btn btn-outline" onclick="closeModal('createTransferModal')">Cancel</button>
+                <button class="btn btn-primary" onclick="createTransfer()">Create Transfer</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/app.js"></script>
+    <script>
+        let products = [], locations = [];
+
+        async function loadTransfers() {
+            const tbody = document.getElementById('transferTable');
+            tbody.innerHTML = loadingRow(5);
+            try {
+                await ensureAuth();
+                const data = await api.get('/operations/transfers');
+                const list = data.transfers || [];
+                tbody.innerHTML = list.map(t => `
+                    <tr>
+                        <td>WH/INT/${String(t.id).padStart(3, '0')}</td>
+                        <td>${t.from_location_name || t.from_location}</td>
+                        <td>${t.to_location_name || t.to_location}</td>
+                        <td>${new Date(t.created_at).toLocaleDateString()}</td>
+                        <td><button class="btn btn-success btn-sm" onclick="executeTransfer(${t.id})">⚡ Execute</button></td>
+                    </tr>
+                `).join('') || emptyRow(5);
+            } catch (err) { tbody.innerHTML = emptyRow(5, 'Error: ' + err.message); }
+        }
+
+        async function executeTransfer(id) {
+            try {
+                await api.post(`/operations/transfers/${id}/execute`);
+                showToast(`Transfer #${id} executed!`, 'success');
+                loadTransfers();
+            } catch (err) { showToast(err.message, 'error'); }
+        }
+
+        async function loadDropdowns() {
+            try {
+                const p = await api.get('/products'); products = Array.isArray(p) ? p : (p.data || []);
+                const l = await api.get('/locations'); locations = Array.isArray(l) ? l : (l.data || []);
+                const locOpts = locations.map(l => `<option value="${l.id}">${l.name}</option>`).join('');
+                document.getElementById('tFrom').innerHTML = locOpts;
+                document.getElementById('tTo').innerHTML = locOpts;
+            } catch { }
+        }
+
+        function addTransferItem() {
+            const container = document.getElementById('transferItems');
+            const div = document.createElement('div');
+            div.className = 'item-row';
+            div.style.gridTemplateColumns = '1fr 100px 40px';
+            div.innerHTML = `
+                <div class="form-group"><label>Product</label>
+                    <select class="ti-product">${products.map(p => `<option value="${p.id}">${p.name} (${p.sku})</option>`).join('')}</select>
+                </div>
+                <div class="form-group"><label>Qty</label><input type="number" class="ti-qty" min="1" value="1"></div>
+                <button class="remove-item" onclick="this.parentElement.remove()">×</button>
+            `;
+            container.appendChild(div);
+        }
+
+        async function createTransfer() {
+            try {
+                const items = [...document.querySelectorAll('#transferItems .item-row')].map(row => ({
+                    product_id: row.querySelector('.ti-product').value,
+                    quantity: row.querySelector('.ti-qty').value,
+                }));
+                if (items.length === 0) return showToast('Add at least one item', 'error');
+                await api.post('/operations/transfers', {
+                    from_location: document.getElementById('tFrom').value,
+                    to_location: document.getElementById('tTo').value,
+                    items,
+                });
+                showToast('Transfer created!', 'success');
+                closeModal('createTransferModal');
+                document.getElementById('transferItems').innerHTML = '';
+                loadTransfers();
+            } catch (err) { showToast(err.message, 'error'); }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => { loadDropdowns().then(() => loadTransfers()); });
+    </script>
+</body>
+
+</html>

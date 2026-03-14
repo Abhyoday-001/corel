@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CoreInventory | Dashboard</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+    <aside class="sidebar">
+        <div class="logo">CoreInventory</div>
+        <ul>
+            <li class="active">Dashboard</li>
+            <li onclick="location.href='products.html'">Products</li>
+            <li onclick="location.href='receipts.html'">Receipts</li>
+            <li onclick="location.href='deliveries.html'">Delivery Orders</li>
+            <li onclick="location.href='transfers.html'">Internal Transfers</li>
+            <li onclick="location.href='adjustments.html'">Inventory Adjustment</li>
+            <li onclick="location.href='history.html'">Move History</li>
+            <li onclick="location.href='settings.html'">Settings</li>
+        </ul>
+        <div class="sidebar-footer">
+            Logged in as<span class="user-name">Inventory Manager</span>
+            <button class="logout-btn" onclick="logout()">Logout</button>
+        </div>
+    </aside>
+
+    <main class="main">
+        <header>
+            <h1>Inventory Overview</h1>
+            <input type="text" class="search-bar" placeholder="Search SKU..." id="skuSearch">
+        </header>
+
+        <div class="kpi-grid" id="kpiGrid">
+            <div class="card">
+                <h3>Total Products</h3>
+                <p class="kpi-value" id="kpiProducts">—</p>
+            </div>
+            <div class="card success">
+                <h3>Total Stock Units</h3>
+                <p class="kpi-value" id="kpiStock">—</p>
+            </div>
+            <div class="card warning">
+                <h3>Low Stock</h3>
+                <p class="kpi-value" id="kpiLowStock">—</p>
+            </div>
+            <div class="card">
+                <h3>Pending Receipts</h3>
+                <p class="kpi-value" id="kpiReceipts">—</p>
+            </div>
+            <div class="card danger">
+                <h3>Pending Deliveries</h3>
+                <p class="kpi-value" id="kpiDeliveries">—</p>
+            </div>
+            <div class="card">
+                <h3>Warehouses</h3>
+                <p class="kpi-value" id="kpiWarehouses">—</p>
+            </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:2rem;margin-bottom:2rem">
+            <div class="data-section">
+                <h2 style="margin-bottom:1rem">Stock by Warehouse</h2>
+                <canvas id="whChart" height="200"></canvas>
+            </div>
+            <div class="data-section">
+                <h2 style="margin-bottom:1rem">Active Operations</h2>
+                <canvas id="opsChart" height="200"></canvas>
+            </div>
+        </div>
+
+        <div class="data-section" style="margin-bottom:2rem">
+            <h2>Recent Receipts</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>SUPPLIER</th>
+                        <th>STATUS</th>
+                        <th>DATE</th>
+                    </tr>
+                </thead>
+                <tbody id="recentReceipts"></tbody>
+            </table>
+        </div>
+        <div class="data-section" style="margin-bottom:2rem">
+            <h2>Recent Deliveries</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>CUSTOMER</th>
+                        <th>STATUS</th>
+                        <th>DATE</th>
+                    </tr>
+                </thead>
+                <tbody id="recentDeliveries"></tbody>
+            </table>
+        </div>
+        <div class="data-section">
+            <h2>Recent Transfers</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>FROM</th>
+                        <th>TO</th>
+                        <th>DATE</th>
+                    </tr>
+                </thead>
+                <tbody id="recentTransfers"></tbody>
+            </table>
+        </div>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="js/app.js"></script>
+    <script>
+        let whChartInstance = null;
+        let opsChartInstance = null;
+
+        Chart.defaults.color = '#94a3b8';
+        Chart.defaults.font.family = 'Inter';
+
+        async function loadDashboard() {
+            try {
+                await ensureAuth();
+                const data = await api.get('/dashboard/kpis');
+                const k = data.kpis;
+                document.getElementById('kpiProducts').textContent = k.totalProducts.toLocaleString();
+                document.getElementById('kpiStock').textContent = k.totalStockUnits.toLocaleString();
+                document.getElementById('kpiLowStock').textContent = k.lowStockItems;
+                document.getElementById('kpiReceipts').textContent = k.pendingReceipts;
+                document.getElementById('kpiDeliveries').textContent = k.pendingDeliveries;
+                document.getElementById('kpiWarehouses').textContent = k.totalWarehouses;
+
+                // Recent receipts
+                const rr = document.getElementById('recentReceipts');
+                rr.innerHTML = (data.recentReceipts || []).map(r => `
+                    <tr><td>#${r.id}</td><td>${r.supplier || '—'}</td><td>${statusBadge(r.status)}</td><td>${new Date(r.created_at).toLocaleDateString()}</td></tr>
+                `).join('') || emptyRow(4);
+
+                // Recent deliveries
+                const rd = document.getElementById('recentDeliveries');
+                rd.innerHTML = (data.recentDeliveries || []).map(d => `
+                    <tr><td>#${d.id}</td><td>${d.customer || '—'}</td><td>${statusBadge(d.status)}</td><td>${new Date(d.created_at).toLocaleDateString()}</td></tr>
+                `).join('') || emptyRow(4);
+
+                // Recent transfers
+                const rt = document.getElementById('recentTransfers');
+                rt.innerHTML = (data.recentTransfers || []).map(t => `
+                    <tr><td>#${t.id}</td><td>${t.from_location_name || t.from_location}</td><td>${t.to_location_name || t.to_location}</td><td>${new Date(t.created_at).toLocaleDateString()}</td></tr>
+                `).join('') || emptyRow(4);
+
+                // Render Charts
+                if (data.stockByWarehouse && data.operationsSummary) {
+                    if (whChartInstance) whChartInstance.destroy();
+                    if (opsChartInstance) opsChartInstance.destroy();
+
+                    const wCtx = document.getElementById('whChart').getContext('2d');
+                    whChartInstance = new Chart(wCtx, {
+                        type: 'doughnut',
+                        data: {
+                            labels: data.stockByWarehouse.map(d => d.warehouse),
+                            datasets: [{
+                                data: data.stockByWarehouse.map(d => d.total),
+                                backgroundColor: ['#00d1ff', '#4ade80', '#a78bfa', '#fbbf24'],
+                                borderWidth: 0,
+                                hoverOffset: 4
+                            }]
+                        },
+                        options: { cutout: '75%', plugins: { legend: { position: 'right' } } }
+                    });
+
+                    const oCtx = document.getElementById('opsChart').getContext('2d');
+                    const ops = data.operationsSummary;
+                    opsChartInstance = new Chart(oCtx, {
+                        type: 'bar',
+                        data: {
+                            labels: ['Draft', 'Ready', 'Done'],
+                            datasets: [
+                                { label: 'Receipts', data: [ops.receipts.draft, ops.receipts.ready, ops.receipts.done], backgroundColor: '#a78bfa' },
+                                { label: 'Deliveries', data: [ops.deliveries.draft, ops.deliveries.ready, ops.deliveries.done], backgroundColor: '#00d1ff' }
+                            ]
+                        },
+                        options: { scales: { y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' } }, x: { grid: { display: false } } } }
+                    });
+                }
+
+            } catch (err) {
+                showToast('Failed to load dashboard: ' + err.message, 'error');
+            }
+        }
+        document.addEventListener('DOMContentLoaded', loadDashboard);
+    </script>
+</body>
+
+</html>

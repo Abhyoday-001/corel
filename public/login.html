@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CoreInventory | Secure Access</title>
+  <link rel="stylesheet" href="css/auth.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+</head>
+
+<body>
+  <div class="page">
+    <div class="auth-header">
+      <h1 class="app-name">Core Inventory</h1>
+    </div>
+
+    <section class="auth-card">
+      <div class="tabs">
+        <button class="tab-btn active" data-tab="login">Login</button>
+        <button class="tab-btn" data-tab="signup">Sign Up</button>
+      </div>
+
+      <div id="form-message" class="message"></div>
+
+      <!-- ─── Login ──────────────────────────────────── -->
+      <div id="login-section" class="form-section active">
+        <div class="field">
+          <label for="login-identifier">Email or Phone</label>
+          <input id="login-identifier" type="text" placeholder="name@email.com or 98XXXXXXXX" />
+          <div class="helper" id="login-identifier-helper"></div>
+        </div>
+        <div class="field">
+          <label for="login-password">Password</label>
+          <input id="login-password" type="password" placeholder="Enter your password" />
+        </div>
+        <button class="btn" id="login-btn">Login</button>
+        <div class="inline-actions">
+          <button class="resend" id="forgot-link" type="button">Forgot password?</button>
+        </div>
+      </div>
+
+      <!-- ─── Signup ─────────────────────────────────── -->
+      <div id="signup-section" class="form-section">
+        <div class="field">
+          <label for="signup-name">Full name</label>
+          <input id="signup-name" type="text" placeholder="Enter your name" />
+        </div>
+        <div class="field">
+          <label for="signup-email">Email address</label>
+          <input id="signup-email" type="email" placeholder="name@email.com" />
+          <div class="helper" id="signup-email-helper"></div>
+        </div>
+        <div class="field">
+          <label for="signup-phone">Phone number</label>
+          <input id="signup-phone" type="tel" placeholder="Phone number" />
+          <div class="helper" id="signup-phone-helper"></div>
+        </div>
+        <div class="field">
+          <label for="signup-password">Password</label>
+          <input id="signup-password" type="password" placeholder="At least 8 characters" />
+        </div>
+        <button class="btn" id="signup-btn">Create account</button>
+      </div>
+
+      <!-- ─── OTP Verification ───────────────────────── -->
+      <div id="otp-section" class="form-section">
+        <div class="stack">
+          <div class="otp-header">
+            <label>Enter 6-digit OTP code</label>
+            <div class="helper">Check your email/phone for the verification code.</div>
+          </div>
+          <div class="otp-grid" data-otp="code">
+            <input type="text" inputmode="numeric" maxlength="1" />
+            <input type="text" inputmode="numeric" maxlength="1" />
+            <input type="text" inputmode="numeric" maxlength="1" />
+            <input type="text" inputmode="numeric" maxlength="1" />
+            <input type="text" inputmode="numeric" maxlength="1" />
+            <input type="text" inputmode="numeric" maxlength="1" />
+          </div>
+          <button class="btn" id="verify-btn">Verify and continue</button>
+          <div class="inline-actions">
+            <span class="helper" data-resend="timer"></span>
+            <button class="resend" data-resend="button" type="button">Resend OTP</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ─── Forgot Password ────────────────────────── -->
+      <div id="forgot-section" class="form-section">
+        <div class="field">
+          <label for="forgot-identifier">Email or Phone</label>
+          <input id="forgot-identifier" type="text" placeholder="Enter your email or phone" />
+        </div>
+        <button class="btn" id="forgot-btn">Send OTP</button>
+        <div class="divider"></div>
+        <button class="btn btn-secondary" id="back-to-login" type="button">Back to login</button>
+      </div>
+
+      <!-- ─── Reset Password ─────────────────────────── -->
+      <div id="reset-section" class="form-section">
+        <div class="stack">
+          <div class="otp-header">
+            <label>Verify OTP & Reset</label>
+          </div>
+          <div class="otp-grid" data-otp="reset-code">
+            <input type="text" inputmode="numeric" maxlength="1" />
+            <input type="text" inputmode="numeric" maxlength="1" />
+            <input type="text" inputmode="numeric" maxlength="1" />
+            <input type="text" inputmode="numeric" maxlength="1" />
+            <input type="text" inputmode="numeric" maxlength="1" />
+            <input type="text" inputmode="numeric" maxlength="1" />
+          </div>
+          <div class="field">
+            <label for="reset-password">New password</label>
+            <input id="reset-password" type="password" placeholder="Min 8 characters" />
+          </div>
+          <button class="btn" id="reset-btn">Update password</button>
+          <div class="inline-actions">
+            <span class="helper" data-resend="timer"></span>
+            <button class="resend" data-resend="button" type="button">Resend OTP</button>
+          </div>
+          <button class="btn btn-secondary" id="reset-back" type="button">Back to login</button>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script src="js/auth.js"></script>
+</body>
+
+</html>

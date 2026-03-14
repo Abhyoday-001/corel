@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CoreInventory | Receipts</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+    <aside class="sidebar">
+        <div class="logo">CoreInventory</div>
+        <ul>
+            <li onclick="location.href='index.html'">Dashboard</li>
+            <li onclick="location.href='products.html'">Products</li>
+            <li class="active">Receipts</li>
+            <li onclick="location.href='deliveries.html'">Delivery Orders</li>
+            <li onclick="location.href='transfers.html'">Internal Transfers</li>
+            <li onclick="location.href='adjustments.html'">Inventory Adjustment</li>
+            <li onclick="location.href='history.html'">Move History</li>
+            <li onclick="location.href='settings.html'">Settings</li>
+        </ul>
+        <div class="sidebar-footer">
+            Logged in as<span class="user-name">Inventory Manager</span>
+            <button class="logout-btn" onclick="logout()">Logout</button>
+        </div>
+    </aside>
+
+    <main class="main">
+        <header>
+            <h1>Receipts (Incoming Goods)</h1>
+            <div style="display:flex;gap:10px">
+                <button class="btn btn-outline" onclick="printPage()">🖨 Print</button>
+                <button class="btn btn-success" onclick="openModal('createReceiptModal')">+ New Receipt</button>
+            </div>
+        </header>
+
+        <div class="filter-bar">
+            <select id="statusFilter" onchange="loadReceipts()">
+                <option value="">All Statuses</option>
+                <option value="draft">Draft</option>
+                <option value="ready">Ready</option>
+                <option value="done">Done</option>
+                <option value="pending">Pending</option>
+                <option value="received">Received</option>
+            </select>
+        </div>
+
+        <div class="data-section">
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>SUPPLIER</th>
+                        <th>STATUS</th>
+                        <th>DATE</th>
+                        <th>ACTIONS</th>
+                    </tr>
+                </thead>
+                <tbody id="receiptTable"></tbody>
+            </table>
+        </div>
+    </main>
+
+    <!-- Create Receipt Modal -->
+    <div class="modal-overlay" id="createReceiptModal">
+        <div class="modal">
+            <h2>New Receipt</h2>
+            <div class="form-group"><label>Supplier</label><input type="text" id="rSupplier"
+                    placeholder="Supplier name"></div>
+            <h3 style="margin:1rem 0 0.5rem;font-size:0.9rem">Items</h3>
+            <div id="receiptItems"></div>
+            <button class="btn btn-outline btn-sm" style="margin-bottom:1rem" onclick="addReceiptItem()">+ Add
+                Item</button>
+            <div class="modal-actions">
+                <button class="btn btn-outline" onclick="closeModal('createReceiptModal')">Cancel</button>
+                <button class="btn btn-success" onclick="createReceipt()">Create Receipt</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/app.js"></script>
+    <script>
+        let products = [], locations = [];
+
+        async function loadReceipts() {
+            const tbody = document.getElementById('receiptTable');
+            tbody.innerHTML = loadingRow(5);
+            try {
+                await ensureAuth();
+                const status = document.getElementById('statusFilter').value;
+                const url = status ? `/operations/receipts?status=${status}` : '/operations/receipts';
+                const data = await api.get(url);
+                const list = data.receipts || [];
+                tbody.innerHTML = list.map(r => `
+                    <tr>
+                        <td>#${r.id}</td>
+                        <td>${r.supplier || '—'}</td>
+                        <td>${statusBadge(r.status)}</td>
+                        <td>${new Date(r.created_at).toLocaleDateString()}</td>
+                        <td>
+                            ${r.status === 'draft' ? `<button class="btn btn-amber btn-sm" onclick="updateStatus(${r.id},'ready')">→ Ready</button>` : ''}
+                            ${r.status === 'ready' ? `<button class="btn btn-success btn-sm" onclick="updateStatus(${r.id},'done')">✓ Validate</button>` : ''}
+                        </td>
+                    </tr>
+                `).join('') || emptyRow(5);
+            } catch (err) {
+                tbody.innerHTML = emptyRow(5, 'Error: ' + err.message);
+            }
+        }
+
+        async function updateStatus(id, status) {
+            try {
+                await api.patch(`/operations/receipts/${id}/status`, { status });
+                showToast(`Receipt #${id} → ${status.toUpperCase()}`, 'success');
+                loadReceipts();
+            } catch (err) {
+                showToast(err.message, 'error');
+            }
+        }
+
+        async function loadDropdowns() {
+            try {
+                const p = await api.get('/products');
+                products = Array.isArray(p) ? p : (p.data || []);
+                const l = await api.get('/locations');
+                locations = Array.isArray(l) ? l : (l.data || []);
+            } catch { }
+        }
+
+        function addReceiptItem() {
+            const container = document.getElementById('receiptItems');
+            const div = document.createElement('div');
+            div.className = 'item-row';
+            div.innerHTML = `
+                <div class="form-group"><label>Product</label>
+                    <select class="ri-product">${products.map(p => `<option value="${p.id}">${p.name} (${p.sku})</option>`).join('')}</select>
+                </div>
+                <div class="form-group"><label>Location</label>
+                    <select class="ri-location">${locations.map(l => `<option value="${l.id}">${l.name}</option>`).join('')}</select>
+                </div>
+                <div class="form-group"><label>Qty</label><input type="number" class="ri-qty" min="1" value="1"></div>
+                <button class="remove-item" onclick="this.parentElement.remove()">×</button>
+            `;
+            container.appendChild(div);
+        }
+
+        async function createReceipt() {
+            try {
+                const items = [...document.querySelectorAll('.item-row')].map(row => ({
+                    product_id: row.querySelector('.ri-product').value,
+                    location_id: row.querySelector('.ri-location').value,
+                    quantity: row.querySelector('.ri-qty').value,
+                }));
+                if (items.length === 0) return showToast('Add at least one item', 'error');
+                await api.post('/operations/receipts', {
+                    supplier: document.getElementById('rSupplier').value,
+                    items,
+                });
+                showToast('Receipt created!', 'success');
+                closeModal('createReceiptModal');
+                document.getElementById('receiptItems').innerHTML = '';
+                loadReceipts();
+            } catch (err) { showToast(err.message, 'error'); }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => { loadDropdowns().then(() => loadReceipts()); });
+    </script>
+</body>
+
+</html>
